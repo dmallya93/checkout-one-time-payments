@@ -370,3 +370,63 @@ def test_dotfiles_are_ignored(
 def test_path_traversal_is_not_served(client: FlaskClient) -> None:
     assert client.get("/../python/server.py").status_code == 404
     assert client.get("/%2e%2e/python/server.py").status_code == 404
+
+
+# --- 413 Payload Too Large (Express body-parser default 100kb) ---------------
+
+
+def _oversize_body() -> bytes:
+    return b"a" * (server.BODY_LIMIT_BYTES + 1)
+
+
+def _at_limit_json() -> bytes:
+    body = b'{"quantity":"2","pad":"' + b"a" * (server.BODY_LIMIT_BYTES - 25) + b'"}'
+    assert len(body) == server.BODY_LIMIT_BYTES
+    return body
+
+
+def test_webhook_oversized_body_returns_413(client: FlaskClient) -> None:
+    response = client.post(
+        "/webhook", data=_oversize_body(), content_type="application/json"
+    )
+
+    assert response.status_code == 413
+    assert response.content_type == "text/html; charset=utf-8"
+    assert b"<pre>PayloadTooLargeError: request entity too large</pre>" in response.data
+
+
+def test_create_checkout_session_oversized_json_returns_413(
+    client: FlaskClient, stripe_mock: MagicMock
+) -> None:
+    response = client.post(
+        "/create-checkout-session", data=_oversize_body(), content_type="application/json"
+    )
+
+    assert response.status_code == 413
+    stripe_mock.v1.checkout.sessions.create.assert_not_called()
+
+
+def test_create_checkout_session_oversized_form_returns_413(
+    client: FlaskClient, stripe_mock: MagicMock
+) -> None:
+    response = client.post(
+        "/create-checkout-session",
+        data=_oversize_body(),
+        content_type="application/x-www-form-urlencoded",
+    )
+
+    assert response.status_code == 413
+    stripe_mock.v1.checkout.sessions.create.assert_not_called()
+
+
+def test_create_checkout_session_body_at_limit_is_processed(
+    client: FlaskClient, stripe_mock: MagicMock
+) -> None:
+    response = client.post(
+        "/create-checkout-session",
+        data=_at_limit_json(),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 303
+    stripe_mock.v1.checkout.sessions.create.assert_called_once()

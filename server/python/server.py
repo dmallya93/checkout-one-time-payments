@@ -32,6 +32,8 @@ DEFAULT_PORT = 4242
 DEFAULT_STATIC_DIR = "../../client/html"
 # Express' ``app.listen(PORT)`` binds every interface, so the Python server does too.
 LISTEN_HOST = "0.0.0.0"
+# Matches the default ``limit: '100kb'`` of ``express.json()`` / ``express.urlencoded()``.
+BODY_LIMIT_BYTES = 100 * 1024
 
 SECRET_KEY_PATTERN = re.compile(r"(sk|rk)_(test|live)_[A-Za-z0-9]{10,}")
 
@@ -170,6 +172,8 @@ def create_app(
     app = Flask(__name__, static_folder=config.static_dir, static_url_path="")
     # Express routing is not strict about trailing slashes: ``/health/`` matches.
     app.url_map.strict_slashes = False
+    # Reject bodies larger than Express' default 100kb (``express.json``/``urlencoded``).
+    app.config["MAX_CONTENT_LENGTH"] = BODY_LIMIT_BYTES
     app.config["STRIPE_CLIENT"] = client
     app.config["APP_CONFIG"] = config
 
@@ -262,6 +266,11 @@ def create_app(
         """Express answers unknown routes and unsupported methods with the same 404 page."""
         return express_not_found()
 
+    @app.errorhandler(413)
+    def payload_too_large(_err: HTTPException) -> Response:
+        """Express' body-parser answered oversized bodies with its finalhandler 413 page."""
+        return express_error_page(413, "PayloadTooLargeError: request entity too large")
+
     return app
 
 
@@ -304,6 +313,12 @@ def express_not_found() -> Response:
     """Reproduce Express' (finalhandler) default 404 page."""
     path = quote(request.path, safe="/!$&'()*+,;=:@~%")
     message = escape(f"Cannot {request.method} {path}", quote=True).replace("  ", " &nbsp;")
+    return express_error_page(404, message, escaped=True)
+
+
+def express_error_page(status: int, message: str, *, escaped: bool = False) -> Response:
+    """Reproduce Express' (finalhandler) default HTML error page for ``status``."""
+    text = message if escaped else escape(message, quote=True)
     body = (
         "<!DOCTYPE html>\n"
         '<html lang="en">\n'
@@ -312,11 +327,11 @@ def express_not_found() -> Response:
         "<title>Error</title>\n"
         "</head>\n"
         "<body>\n"
-        f"<pre>{message}</pre>\n"
+        f"<pre>{text}</pre>\n"
         "</body>\n"
         "</html>\n"
     )
-    response = Response(body, status=404, content_type=HTML_CONTENT_TYPE)
+    response = Response(body, status=status, content_type=HTML_CONTENT_TYPE)
     response.headers["Content-Security-Policy"] = "default-src 'none'"
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
