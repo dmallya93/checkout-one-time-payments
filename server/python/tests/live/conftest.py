@@ -17,8 +17,6 @@ Servers are started on demand and shared for the whole session:
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import os
 import re
 import shutil
@@ -34,6 +32,8 @@ from urllib.parse import urlsplit
 
 import pytest
 import requests
+
+from tests.conftest import sign_payload
 
 PYTHON_DIR = Path(__file__).resolve().parents[2]
 REPO_ROOT = PYTHON_DIR.parents[1]
@@ -186,10 +186,7 @@ class LiveServer:
         """Build a ``Stripe-Signature`` header for ``payload``."""
         key = secret if secret is not None else self.webhook_secret
         assert key, "sign_webhook needs a webhook secret"
-        timestamp = int(time.time())
-        signed = f"{timestamp}.".encode() + payload
-        digest = hmac.new(key.encode(), signed, hashlib.sha256).hexdigest()
-        return f"t={timestamp},v1={digest}"
+        return sign_payload(payload, key)
 
 
 def extract_session_id(checkout_url: str) -> str:

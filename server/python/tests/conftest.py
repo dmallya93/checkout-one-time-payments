@@ -7,7 +7,10 @@ Nothing here is autouse, so the live tests in ``tests/live/`` are unaffected.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -36,6 +39,14 @@ SERVER_ENV_VARS = (
     "FLASK_DEBUG",
     "WERKZEUG_RUN_MAIN",
 )
+
+
+def sign_payload(payload: str | bytes, secret: str, timestamp: int | None = None) -> str:
+    """Build a Stripe-Signature header the same way Stripe does (HMAC-SHA256 of "t.payload")."""
+    t = int(time.time()) if timestamp is None else timestamp
+    body = payload.encode() if isinstance(payload, str) else payload
+    digest = hmac.new(secret.encode(), f"{t}.".encode() + body, hashlib.sha256).hexdigest()
+    return f"t={t},v1={digest}"
 
 
 @pytest.fixture

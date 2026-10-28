@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import time
 
 import pytest
 
 import server
-from tests.conftest import WEBHOOK_SECRET
+from tests.conftest import WEBHOOK_SECRET, sign_payload
 
 PAYMENT_RECEIVED = "\U0001f514  Payment received!\n"
 SIGNATURE_FAILED = "⚠️  Webhook signature verification failed.\n"
@@ -31,10 +29,7 @@ def make_event(event_type: str = "checkout.session.completed") -> str:
 
 
 def sign(payload: str, secret: str = WEBHOOK_SECRET, timestamp: int | None = None) -> str:
-    """Build a Stripe-Signature header the same way Stripe does (HMAC-SHA256 of "t.payload")."""
-    t = int(time.time()) if timestamp is None else timestamp
-    digest = hmac.new(secret.encode(), f"{t}.{payload}".encode(), hashlib.sha256).hexdigest()
-    return f"t={t},v1={digest}"
+    return sign_payload(payload, secret, timestamp)
 
 
 @pytest.fixture
