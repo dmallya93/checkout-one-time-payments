@@ -24,6 +24,15 @@ __pycache__
 env
 venv
 .venv
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Playwright output
+test-results/
+playwright-report/
 
 # PHP files
 vendor

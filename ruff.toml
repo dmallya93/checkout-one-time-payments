@@ -1,0 +1,4 @@
+# Repo-wide Ruff settings for Python outside server/python (e.g. tests/parity).
+# The rules live in server/python/pyproject.toml; this file only reuses them so
+# `ruff check tests` and `ruff check server/python` lint the same way.
+extend = "server/python/pyproject.toml"

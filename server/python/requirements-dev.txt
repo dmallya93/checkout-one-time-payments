@@ -1,0 +1,8 @@
+# Development and test dependencies (unit, parity and E2E tests, lint).
+-r requirements.txt
+pytest==8.4.2
+ruff==0.17.3
+requests==2.34.2
+playwright==1.64.1
+pytest-playwright==0.7.2
+mypy==2.4.1

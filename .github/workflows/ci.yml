@@ -1,0 +1,146 @@
+# Lint, unit tests, HTTP parity (contract tests against stripe-mock) and Playwright
+# E2E for the Python/Flask server in server/python.
+#
+# Order: Ruff -> pytest (unit, parity) -> Playwright.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.13"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: server/python/requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r server/python/requirements-dev.txt
+
+      - name: Ruff check
+        run: ruff check server/python tests
+
+      - name: Ruff format check
+        run: ruff format --check server/python tests
+
+  unit:
+    name: Unit tests
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: server/python/requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r server/python/requirements-dev.txt
+
+      - name: pytest (server/python)
+        working-directory: server/python
+        run: pytest
+
+  parity:
+    name: HTTP parity
+    needs: lint
+    runs-on: ubuntu-latest
+    env:
+      STRIPE_MOCK_URL: http://localhost:12111
+    services:
+      stripe-mock:
+        image: stripe/stripe-mock:latest
+        ports:
+          - 12111:12111
+          - 12112:12112
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: server/python/requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r server/python/requirements-dev.txt
+
+      - name: Wait for stripe-mock
+        run: |
+          for _ in $(seq 1 60); do
+            curl -fsS -o /dev/null -u sk_test_ci000000000: "$STRIPE_MOCK_URL/v1/balance" && exit 0
+            sleep 1
+          done
+          echo "stripe-mock did not become ready at $STRIPE_MOCK_URL" >&2
+          exit 1
+
+      - name: Parity suite
+        run: bash tests/parity/run_parity.sh python
+
+  e2e:
+    name: Playwright E2E
+    needs: [unit, parity]
+    runs-on: ubuntu-latest
+    env:
+      STRIPE_MOCK_URL: http://localhost:12111
+    services:
+      stripe-mock:
+        image: stripe/stripe-mock:latest
+        ports:
+          - 12111:12111
+          - 12112:12112
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: server/python/requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r server/python/requirements-dev.txt
+
+      - name: Install Playwright Chromium
+        run: playwright install --with-deps chromium
+
+      - name: Wait for stripe-mock
+        run: |
+          for _ in $(seq 1 60); do
+            curl -fsS -o /dev/null -u sk_test_ci000000000: "$STRIPE_MOCK_URL/v1/balance" && exit 0
+            sleep 1
+          done
+          echo "stripe-mock did not become ready at $STRIPE_MOCK_URL" >&2
+          exit 1
+
+      - name: pytest (tests/e2e)
+        run: pytest tests/e2e --tracing retain-on-failure --output test-results
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
