@@ -438,7 +438,7 @@ def test_main_flask_debug_uses_app_run(startup, capsys):
     server.main()
 
     startup.stripe_client.v1.balance.retrieve.assert_called_once_with()
-    startup.flask_run.assert_called_once_with(host="0.0.0.0", port=4242, debug=True)
+    startup.flask_run.assert_called_once_with(port=4242, debug=True)
     startup.create_server.assert_not_called()
     assert capsys.readouterr().out == "Python server listening on port 4242!\n"
 
@@ -450,7 +450,7 @@ def test_main_flask_debug_reloader_child_skips_check_and_log(startup, capsys):
     server.main()
 
     startup.stripe_client.v1.balance.retrieve.assert_not_called()
-    startup.flask_run.assert_called_once_with(host="0.0.0.0", port=4242, debug=True)
+    startup.flask_run.assert_called_once_with(port=4242, debug=True)
     startup.create_server.assert_not_called()
     assert capsys.readouterr().out == ""
 

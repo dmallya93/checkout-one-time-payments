@@ -185,7 +185,7 @@ def main() -> None:
     if debug:
         if not reloader_child:
             print(listening, flush=True)
-        app.run(host="0.0.0.0", port=config.port, debug=True)
+        app.run(port=config.port, debug=True)
     else:
         # Bind first, then log, like app.listen's callback in Node.
         server = waitress.create_server(app, host="0.0.0.0", port=config.port)
