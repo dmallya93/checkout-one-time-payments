@@ -318,11 +318,6 @@ def server_pool(stripe_secret_key: str) -> Iterator[ServerPool]:
         pool.stop_all()
 
 
-@pytest.fixture(scope="session")
-def parity_targets() -> list[str]:
-    return list(PARITY_TARGETS)
-
-
 @pytest.fixture(scope="session", params=PARITY_TARGETS)
 def live_server(request: pytest.FixtureRequest, server_pool: ServerPool) -> LiveServer:
     """Each PARITY_TARGETS server, with STRIPE_WEBHOOK_SECRET set to WEBHOOK_SECRET."""
