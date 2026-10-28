@@ -1,0 +1,6 @@
+/test-results/
+/playwright-results.json
+/playwright-report/
+/blob-report/
+/.last-run.json
+/node_modules/
