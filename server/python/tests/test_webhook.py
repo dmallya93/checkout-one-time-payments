@@ -218,6 +218,27 @@ def test_unsigned_without_body_or_content_type_returns_ok(client, capsys):
     assert capsys.readouterr().out == ""
 
 
+@pytest.mark.parametrize("content_type", ["text/plain", None])
+def test_unsigned_ignores_json_without_json_content_type(client, capsys, content_type):
+    kwargs = {} if content_type is None else {"content_type": content_type}
+    resp = client.post("/webhook", data=make_event(), **kwargs)
+
+    assert_ok(resp)
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("form", "expected"),
+    [({"type": "checkout.session.completed"}, PAYMENT_RECEIVED), ({"type": "other"}, "")],
+    ids=["completed", "other"],
+)
+def test_unsigned_reads_urlencoded_event_type(client, capsys, form, expected):
+    resp = client.post("/webhook", data=form)
+
+    assert_ok(resp)
+    assert capsys.readouterr().out == expected
+
+
 def test_empty_webhook_secret_config_means_unsigned(make_config, stripe_client, capsys):
     # load_config() maps an empty STRIPE_WEBHOOK_SECRET to None; an empty string behaves
     # the same way here (falsy), like the truthiness check in the Node server.

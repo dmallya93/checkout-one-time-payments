@@ -306,8 +306,7 @@ def test_create_session_domain_defaults_from_port(isolated_env, stripe_client):
         {"data": {"other": "x"}},
         {"json": {}},
         {"json": [1, 2, 3]},
-        {"json": "3"},
-        {"data": "{not json", "content_type": "application/json"},
+        {"data": "", "content_type": "application/json"},
     ],
     ids=[
         "no-body",
@@ -315,8 +314,7 @@ def test_create_session_domain_defaults_from_port(isolated_env, stripe_client):
         "form-without-quantity",
         "empty-json",
         "json-list",
-        "json-string",
-        "invalid-json",
+        "empty-json-body",
     ],
 )
 def test_create_session_without_quantity_passes_none_and_returns_502(
@@ -333,6 +331,21 @@ def test_create_session_without_quantity_passes_none_and_returns_502(
     stripe_client.v1.checkout.sessions.create.assert_called_once_with(
         params=expected_create_params(None)
     )
+
+
+@pytest.mark.parametrize(
+    "data",
+    ["{not json", '"3"', "3", "null"],
+    ids=["invalid-json", "json-string", "json-number", "json-null"],
+)
+def test_create_session_bad_json_returns_400_without_calling_stripe(client, stripe_client, data):
+    # express.json() is strict: malformed or non-object/array JSON is a 400 before the handler.
+    resp = client.post("/create-checkout-session", data=data, content_type="application/json")
+
+    assert resp.status_code == 400
+    assert resp.mimetype == "text/plain"
+    assert resp.get_data(as_text=True) == "Bad Request"
+    stripe_client.v1.checkout.sessions.create.assert_not_called()
 
 
 def test_create_session_generic_error_returns_502(client, stripe_client):

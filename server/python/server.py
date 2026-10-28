@@ -8,6 +8,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import parse_qs
 
 import stripe
 import waitress
@@ -108,7 +109,15 @@ def create_app(config: Config, stripe_client: stripe.StripeClient) -> Flask:
     @app.post("/create-checkout-session")
     def create_checkout_session():
         if request.is_json:
-            body = request.get_json(silent=True)
+            # Like express.json() (strict): an empty body is {}, and a body that is not a
+            # JSON object or array is rejected with 400 before Stripe is called.
+            raw = request.get_data().strip()
+            try:
+                if raw and raw[:1] not in (b"{", b"["):
+                    raise ValueError("strict JSON body must be an object or array")
+                body = json.loads(raw) if raw else {}
+            except ValueError:
+                return Response("Bad Request", 400, mimetype="text/plain")
             quantity = body.get("quantity") if isinstance(body, dict) else None
         else:
             quantity = request.form.get("quantity")
@@ -151,11 +160,18 @@ def create_app(config: Config, stripe_client: stripe.StripeClient) -> Flask:
                 return Response("Bad Request", 400, mimetype="text/plain")
             event_type = event.type
         else:
-            try:
-                body = json.loads(payload) if payload else {}
-            except ValueError:
-                body = {}
-            event_type = body.get("type") if isinstance(body, dict) else None
+            # Like Express, only JSON and urlencoded bodies are read. Malformed JSON is
+            # tolerated (no event) so the webhook always answers 200.
+            event_type = None
+            if request.is_json:
+                try:
+                    body = json.loads(payload) if payload else {}
+                except ValueError:
+                    body = {}
+                event_type = body.get("type") if isinstance(body, dict) else None
+            elif request.mimetype == "application/x-www-form-urlencoded":
+                # The stream was already read by get_data(), so parse the raw bytes.
+                event_type = parse_qs(payload.decode("utf-8", "replace")).get("type", [None])[0]
 
         if event_type == "checkout.session.completed":
             print("🔔  Payment received!", flush=True)
