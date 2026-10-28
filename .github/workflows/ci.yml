@@ -1,10 +1,7 @@
-# Lint, unit tests, HTTP parity (Node reference vs Python) and Playwright E2E for
-# the Python/Flask server in server/python.
+# Lint, unit tests, HTTP parity (contract tests against stripe-mock) and Playwright
+# E2E for the Python/Flask server in server/python.
 #
 # Order: Ruff -> pytest (unit, parity) -> Playwright.
-#
-# Cut-over (when server/node is deleted): in the "parity" job, delete the step marked
-# "Node reference" and change `run_parity.sh all` to `run_parity.sh python`.
 name: CI
 
 on:
@@ -89,12 +86,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r server/python/requirements-dev.txt
 
-      # Node reference: remove this step at cut-over (with server/node).
-      - name: Set up Node (reference server)
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-
       - name: Wait for stripe-mock
         run: |
           for _ in $(seq 1 60); do
@@ -104,9 +95,8 @@ jobs:
           echo "stripe-mock did not become ready at $STRIPE_MOCK_URL" >&2
           exit 1
 
-      # At cut-over: `all` -> `python`.
       - name: Parity suite
-        run: bash tests/parity/run_parity.sh all
+        run: bash tests/parity/run_parity.sh python
 
   e2e:
     name: Playwright E2E

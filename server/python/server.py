@@ -1,6 +1,6 @@
 """Stripe Checkout one-time payments sample: Python / Flask server.
 
-A one-to-one translation of the original Express server (``server/node/server.js``).
+A one-to-one translation of the original Express server (removed after the parity gate).
 It serves the static client in ``client/html``, creates and retrieves Stripe-hosted
 Checkout Sessions, reports health through the Balance API and receives webhooks.
 

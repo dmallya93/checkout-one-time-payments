@@ -1,13 +1,13 @@
 """Fixtures for the HTTP parity suite.
 
-The suite talks to an already running server over HTTP, so the same tests run
-against the reference Express server and the Flask server. ``run_parity.sh``
-starts everything; to run by hand, export:
+The suite talks to an already running server over HTTP and does not import any
+server code, so it checks the HTTP contract of whatever server ``BASE_URL`` points
+at. ``run_parity.sh`` starts the Flask server; to run by hand, export:
 
 - ``BASE_URL``: server started *without* ``STRIPE_WEBHOOK_SECRET`` (required).
 - ``SIGNED_BASE_URL``: the same server started with ``STRIPE_WEBHOOK_SECRET``.
 - ``PARITY_WEBHOOK_SECRET``: the secret that server was started with.
-- ``STRIPE_MOCK_URL``: the stripe-mock both servers use (default
+- ``STRIPE_MOCK_URL``: the stripe-mock the server uses (default
   ``http://localhost:12111``).
 
 Signed-webhook tests are skipped when ``SIGNED_BASE_URL`` is unset, unless

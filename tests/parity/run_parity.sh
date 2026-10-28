@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Run the HTTP parity suite against the Node (reference) and/or Python servers.
+# Run the HTTP parity suite against the Python/Flask server (server/python).
 #
-#   bash tests/parity/run_parity.sh node|python|all     (default: all)
+#   bash tests/parity/run_parity.sh [python]
 #
-# For each server it starts two instances against stripe-mock, both with a dummy
+# It starts two instances of the server against stripe-mock, both with a dummy
 # test key: one without STRIPE_WEBHOOK_SECRET (BASE_URL) and one with a known test
 # secret (SIGNED_BASE_URL). It then runs `pytest tests/parity` and stops them.
+# To test a server you started yourself, run pytest directly (see README.md).
 #
 # stripe-mock: if STRIPE_MOCK_URL is set, that instance is used. Otherwise a local
 # `stripe-mock` binary on PATH is started on free ports; without one, a stripe-mock
@@ -20,16 +21,11 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
-TARGET="${1:-all}"
-case "$TARGET" in
-  node) IMPLS=(node) ;;
-  python) IMPLS=(python) ;;
-  all) IMPLS=(node python) ;;
-  *)
-    echo "usage: $0 node|python|all" >&2
-    exit 2
-    ;;
-esac
+TARGET="${1:-python}"
+if [[ "$TARGET" != "python" || $# -gt 1 ]]; then
+  echo "usage: $0 [python]" >&2
+  exit 2
+fi
 
 # Dummy credentials: stripe-mock accepts any well-formed test key. Not real secrets.
 SECRET_KEY="sk_test_paritysuite0000"
@@ -40,7 +36,7 @@ if [[ -x server/python/.venv/bin/python ]]; then
 else
   PY="python3"
 fi
-# Absolute, because servers are started from their own directories.
+# Absolute, because the server is started from its own directory.
 if [[ "$PY" == */* ]]; then
   PY_ABS="$(cd "$(dirname "$PY")" && pwd)/$(basename "$PY")"
 else
@@ -151,11 +147,11 @@ fi
 export STRIPE_MOCK_URL
 
 # --- servers --------------------------------------------------------------------
-# start_server IMPL PORT WEBHOOK_SECRET LOG: start one server in the background.
+# start_server PORT WEBHOOK_SECRET LOG: start one server instance in the background.
 # Empty values are exported on purpose: dotenv never overrides variables that are
-# already set, so a developer's server/*/.env cannot change the tested config.
+# already set, so a developer's server/python/.env cannot change the tested config.
 start_server() {
-  local impl="$1" port="$2" webhook_secret="$3" log="$4"
+  local port="$1" webhook_secret="$2" log="$3"
   local -a env_vars=(
     "STRIPE_SECRET_KEY=$SECRET_KEY"
     "STRIPE_API_BASE=$STRIPE_MOCK_URL"
@@ -164,80 +160,36 @@ start_server() {
     "DOMAIN="
     "STATIC_DIR="
   )
-  case "$impl" in
-    node)
-      (cd server/node && exec env "${env_vars[@]}" \
-        node -r ../../tests/parity/stripe-mock-preload.js server.js) >"$log" 2>&1 &
-      ;;
-    python)
-      (cd server/python && exec env "${env_vars[@]}" PYTHONUNBUFFERED=1 \
-        "$PY_ABS" server.py) >"$log" 2>&1 &
-      ;;
-  esac
+  (cd server/python && exec env "${env_vars[@]}" PYTHONUNBUFFERED=1 \
+    "$PY_ABS" server.py) >"$log" 2>&1 &
   LAST_PID=$!
   PIDS+=("$LAST_PID")
 }
 
-stop_servers() {
-  local pid
-  for pid in "$@"; do
-    kill "$pid" 2>/dev/null || true
-    wait "$pid" 2>/dev/null || true
-  done
-}
-
-if [[ " ${IMPLS[*]} " == *" node "* ]]; then
-  command -v node >/dev/null 2>&1 || {
-    echo "error: node is required for the reference run" >&2
-    exit 1
-  }
-  if [[ ! -d server/node/node_modules ]]; then
-    echo "Installing server/node dependencies"
-    (cd server/node && npm install --no-audit --no-fund)
-  fi
-fi
-
-declare -A RESULTS=()
-STATUS=0
-for impl in "${IMPLS[@]}"; do
-  port="$(pick_port "${PARITY_PORT:-4243}")"
-  signed_port="$(pick_port "${PARITY_SIGNED_PORT:-4244}")"
-  [[ "$signed_port" != "$port" ]] || signed_port="$(pick_port 0)"
-
-  echo
-  echo "=== $impl: unsigned on :$port, signed on :$signed_port (stripe-mock $STRIPE_MOCK_URL)"
-  start_server "$impl" "$port" "" "$LOG_DIR/$impl.log"
-  pid=$LAST_PID
-  start_server "$impl" "$signed_port" "$PARITY_WEBHOOK_SECRET" "$LOG_DIR/$impl-signed.log"
-  signed_pid=$LAST_PID
-
-  if wait_for_url "http://localhost:$port/health" "$pid" "$LOG_DIR/$impl.log" &&
-    wait_for_url "http://localhost:$signed_port/health" "$signed_pid" \
-      "$LOG_DIR/$impl-signed.log"; then
-    # shellcheck disable=SC2086 # PARITY_PYTEST_ARGS is intentionally word-split
-    if SERVER_IMPL="$impl" \
-      BASE_URL="http://localhost:$port" \
-      SIGNED_BASE_URL="http://localhost:$signed_port" \
-      PARITY_WEBHOOK_SECRET="$PARITY_WEBHOOK_SECRET" \
-      PARITY_REQUIRE_SIGNED=1 \
-      "$PY_ABS" -m pytest tests/parity ${PARITY_PYTEST_ARGS:-}; then
-      RESULTS[$impl]="passed"
-    else
-      RESULTS[$impl]="FAILED"
-      STATUS=1
-      echo "--- $impl server logs" >&2
-      cat "$LOG_DIR/$impl.log" "$LOG_DIR/$impl-signed.log" >&2 || true
-    fi
-  else
-    RESULTS[$impl]="FAILED (server did not start)"
-    STATUS=1
-  fi
-  stop_servers "$pid" "$signed_pid"
-done
+port="$(pick_port "${PARITY_PORT:-4243}")"
+signed_port="$(pick_port "${PARITY_SIGNED_PORT:-4244}")"
+[[ "$signed_port" != "$port" ]] || signed_port="$(pick_port 0)"
 
 echo
-echo "=== Parity summary"
-for impl in "${IMPLS[@]}"; do
-  echo "  $impl: ${RESULTS[$impl]}"
-done
+echo "=== python: unsigned on :$port, signed on :$signed_port (stripe-mock $STRIPE_MOCK_URL)"
+start_server "$port" "" "$LOG_DIR/python.log"
+pid=$LAST_PID
+start_server "$signed_port" "$PARITY_WEBHOOK_SECRET" "$LOG_DIR/python-signed.log"
+signed_pid=$LAST_PID
+
+wait_for_url "http://localhost:$port/health" "$pid" "$LOG_DIR/python.log"
+wait_for_url "http://localhost:$signed_port/health" "$signed_pid" "$LOG_DIR/python-signed.log"
+
+STATUS=0
+# shellcheck disable=SC2086 # PARITY_PYTEST_ARGS is intentionally word-split
+BASE_URL="http://localhost:$port" \
+  SIGNED_BASE_URL="http://localhost:$signed_port" \
+  PARITY_WEBHOOK_SECRET="$PARITY_WEBHOOK_SECRET" \
+  PARITY_REQUIRE_SIGNED=1 \
+  "$PY_ABS" -m pytest tests/parity ${PARITY_PYTEST_ARGS:-} || STATUS=$?
+
+if [[ "$STATUS" -ne 0 ]]; then
+  echo "--- server logs" >&2
+  cat "$LOG_DIR/python.log" "$LOG_DIR/python-signed.log" >&2 || true
+fi
 exit "$STATUS"

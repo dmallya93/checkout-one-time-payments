@@ -1,8 +1,8 @@
 # Checkout one-time payments: Python / Flask server
 
 A Python 3.13 / Flask 3.1 server for the Stripe Checkout one-time payments sample.
-It has the same HTTP contract, environment variables and startup checks as the
-original Express server: it serves the static client in `client/html`, creates
+It replaced the sample's original Node/Express server and keeps its HTTP contract,
+environment variables and startup checks: it serves the static client in `client/html`, creates
 Stripe-hosted Checkout Sessions, returns session details to the success page,
 reports health through the Balance API and receives webhooks.
 
@@ -82,15 +82,22 @@ pytest -q
 The unit tests use the Flask test client with a mocked `StripeClient`; no network
 access or real key is needed.
 
-The HTTP parity suite in [`tests/parity`](../../tests/parity/README.md) runs the same
-black-box tests against this server and the Express reference, both pointed at
-stripe-mock: `bash tests/parity/run_parity.sh all` from the repository root.
+The HTTP parity suite in [`tests/parity`](../../tests/parity/README.md) runs black-box
+tests of the HTTP contract against this server, pointed at stripe-mock:
+`bash tests/parity/run_parity.sh` from the repository root.
 
 The Playwright browser tests in [`tests/e2e`](../../tests/e2e/README.md) drive the
 static client through this server against stripe-mock: `pytest tests/e2e` from the
 repository root (after `playwright install chromium`).
 
 ## Differences from the Express server
+
+This server was translated from the sample's former Node/Express reference server
+(`server/node`, Express 4 with stripe-node). That server was removed only after the HTTP
+parity gate passed: the same suite gave identical results against both servers (56
+passed, 4 skipped). The 4 skipped tests covered the empty-`sessionId` and malformed-JSON
+differences listed below; the suite now asserts the Flask behaviour for them. This
+section records the contract history.
 
 The Flask server reproduces the Express behaviour the client and Stripe depend on,
 including these Express quirks:
@@ -110,7 +117,7 @@ including these Express quirks:
 - Trailing slashes are not strict (`/health/` works).
 - The server listens on all interfaces, like `app.listen(PORT)`.
 
-Remaining differences, none of which affect the client or Stripe:
+Accepted differences, none of which affect the client or Stripe:
 
 - **Error message wording** comes from stripe-python instead of stripe-node. The JSON
   keys and status codes are the same.

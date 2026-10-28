@@ -76,18 +76,18 @@ def test_unsigned_webhook_ignores_signature_header(http: requests.Session, base_
     assert_ok(response)
 
 
-@pytest.mark.skip(
-    reason="Documented difference (server/python/README.md): Express' strict JSON parser "
-    "answers malformed JSON and top-level JSON primitives with a 400 HTML page; Flask "
-    "treats them as an empty body (200 OK)."
-)
 @pytest.mark.parametrize("data", [b"{bad", b'"text"', b"42"], ids=["malformed", "string", "number"])
-def test_unsigned_webhook_invalid_json_object(
+def test_unsigned_webhook_invalid_json_object_is_ok(
     http: requests.Session, base_url: str, data: bytes
 ) -> None:
+    """Malformed JSON and top-level JSON primitives are treated as an empty body.
+
+    Accepted difference from the former Express server, whose strict JSON parser
+    answered 400 (see server/python/README.md).
+    """
     response = http.post(f"{base_url}/webhook", data=data, headers=JSON_HEADERS, timeout=TIMEOUT)
 
-    assert response.status_code == 400
+    assert_ok(response)
 
 
 # --- Signed (server started with STRIPE_WEBHOOK_SECRET) ------------------------------
@@ -142,7 +142,7 @@ def test_signed_webhook_bad_signature_is_400(
     elif case == "malformed-header":
         headers["Stripe-Signature"] = "not-a-signature"
     elif case == "expired":
-        # Both SDKs reject timestamps older than the default 300 s tolerance.
+        # Stripe signature verification rejects timestamps older than 300 s by default.
         old = int(time.time()) - 3600
         headers["Stripe-Signature"] = stripe_signature(payload, webhook_secret, timestamp=old)
 

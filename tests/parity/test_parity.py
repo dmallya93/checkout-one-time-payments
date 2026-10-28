@@ -155,14 +155,18 @@ def test_checkout_session_missing_id_is_400(http: requests.Session, base_url: st
     assert isinstance(body["error"], str)
 
 
-@pytest.mark.skip(
-    reason="Documented difference (server/python/README.md): with an empty sessionId "
-    "stripe-node calls the list endpoint (200 on real Stripe); Flask returns 400."
-)
-def test_checkout_session_empty_id(http: requests.Session, base_url: str) -> None:
+def test_checkout_session_empty_id_is_400(http: requests.Session, base_url: str) -> None:
+    """An empty ``sessionId=`` is treated like a missing one.
+
+    Accepted difference from the former Express server, which sent the empty ID to the
+    Stripe list endpoint (see server/python/README.md).
+    """
     response = http.get(f"{base_url}/checkout-session?sessionId=", timeout=TIMEOUT)
 
     assert response.status_code == 400
+    body = assert_json(response)
+    assert set(body) == {"error"}
+    assert isinstance(body["error"], str)
 
 
 # --- POST /create-checkout-session ----------------------------------------------------
