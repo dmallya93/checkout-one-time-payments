@@ -115,7 +115,8 @@ including these Express quirks:
 - Unsupported methods (e.g. `POST /index.html`, `GET /webhook`) return 404 rather than
   Flask's 405, with an Express-style `Cannot <METHOD> <path>` HTML page.
 - Trailing slashes are not strict (`/health/` works).
-- The server listens on all interfaces, like `app.listen(PORT)`.
+- The server listens on all IPv4 interfaces (`0.0.0.0`), like `app.listen(PORT)` apart
+  from IPv6 (see below).
 
 Accepted differences, none of which affect the client or Stripe:
 
@@ -146,3 +147,7 @@ Accepted differences, none of which affect the client or Stripe:
   Werkzeug development server adds its own banner and access log on stderr.
 - **An invalid `PORT`** (non-numeric) stops the server with a Python error; Node's
   `Number()` produced `NaN`.
+- **IPv4-only listener**: the server binds `0.0.0.0`, while Node's `app.listen(PORT)` bound
+  `::` (dual-stack). A client that resolves `localhost` to `::1` and does not fall back
+  to IPv4 gets connection refused. Browsers, curl and the Stripe CLI fall back, so this
+  does not affect the client or Stripe.

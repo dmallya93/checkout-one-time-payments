@@ -30,7 +30,8 @@ from werkzeug.wrappers import Response as BaseResponse
 SERVER_DIR = Path(__file__).resolve().parent
 DEFAULT_PORT = 4242
 DEFAULT_STATIC_DIR = "../../client/html"
-# Express' ``app.listen(PORT)`` binds every interface, so the Python server does too.
+# Express' ``app.listen(PORT)`` binds every interface (dual-stack ``::``). Werkzeug is
+# bound to every IPv4 interface instead, because ``::`` fails on hosts without IPv6.
 LISTEN_HOST = "0.0.0.0"
 # Matches the default ``limit: '100kb'`` of ``express.json()`` / ``express.urlencoded()``.
 BODY_LIMIT_BYTES = 100 * 1024
