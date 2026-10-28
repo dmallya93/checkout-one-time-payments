@@ -27,6 +27,7 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = ["-ra", "--strict-markers"]
 markers = [
     "live: requires a Stripe test-mode key and network access to api.stripe.com",
