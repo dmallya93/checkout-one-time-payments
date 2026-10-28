@@ -183,8 +183,6 @@ def create_app(
     app.url_map.strict_slashes = False
     # Reject bodies larger than Express' default 100kb (``express.json``/``urlencoded``).
     app.config["MAX_CONTENT_LENGTH"] = BODY_LIMIT_BYTES
-    app.config["STRIPE_CLIENT"] = client
-    app.config["APP_CONFIG"] = config
 
     @app.before_request
     def serve_static_first() -> BaseResponse | None:
