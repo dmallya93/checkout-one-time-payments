@@ -82,13 +82,21 @@ pytest -q
 The unit tests use the Flask test client with a mocked `StripeClient`; no network
 access or real key is needed.
 
+The HTTP parity suite in [`tests/parity`](../../tests/parity/README.md) runs the same
+black-box tests against this server and the Express reference, both pointed at
+stripe-mock: `bash tests/parity/run_parity.sh all` from the repository root.
+
 ## Differences from the Express server
 
 The Flask server reproduces the Express behaviour the client and Stripe depend on,
 including these Express quirks:
 
 - JSON responses are compact, keep key order and use `application/json; charset=utf-8`;
-  `OK` / `Bad Request` bodies use `text/plain; charset=utf-8`.
+  `OK` / `Bad Request` bodies use `text/plain; charset=utf-8`. Static text, CSS and
+  JavaScript files use `charset=UTF-8`, as Express' `send` does.
+- The `303` redirect from `/create-checkout-session` negotiates its body on `Accept` like
+  `res.redirect`: `See Other. Redirecting to <url>` as `text/plain` for `*/*` or no
+  `Accept`, a `<p>` as `text/html` for browsers, an empty body otherwise (`Vary: Accept`).
 - Static files win over routes (a `before_request` hook serves any existing file for
   `GET`/`HEAD` before routing, like `express.static` mounted first). Dotfiles are ignored,
   directories redirect (301) to a trailing slash and serve their `index.html`.
@@ -105,10 +113,10 @@ Remaining differences, none of which affect the client or Stripe:
 - **`GET /checkout-session` with an empty `sessionId=`** returns 400. stripe-node sends
   `GET /v1/checkout/sessions/`, which is the *list* endpoint, so Node answered 200 with a
   list. A missing `sessionId` returns 400 in both.
-- **Malformed JSON bodies** sent with `Content-Type: application/json` are treated as an
-  empty body (so `/webhook` answers 200 without a secret, and `/create-checkout-session`
-  calls Stripe without a quantity). Express' body parser rejected them with a 400 HTML error
-  page before the route ran.
+- **Malformed JSON bodies**, and top-level JSON primitives such as `"text"` or `42`, sent
+  with `Content-Type: application/json` are treated as an empty body (so `/webhook` answers
+  200 without a secret, and `/create-checkout-session` calls Stripe without a quantity).
+  Express' strict body parser rejected them with a 400 HTML error page before the route ran.
 - **Signed webhooks** are verified against the raw body whatever the `Content-Type`.
   Express only kept the raw body for `application/json` requests.
 - **Repeated or nested form fields** (`quantity=1&quantity=2`, `quantity[a]=1`) use the first
@@ -118,8 +126,8 @@ Remaining differences, none of which affect the client or Stripe:
   matching route; Express answered `OPTIONS` on routes with a text body and 404 on static
   files.
 - **Response headers**: no `X-Powered-By: Express`, no ETags on JSON responses, static files
-  use `Cache-Control: no-cache` instead of `public, max-age=0`, and redirect bodies are
-  Werkzeug's HTML.
+  use `Cache-Control: no-cache` instead of `public, max-age=0`, and the static directory
+  redirect (`/css` → `/css/`) body is Werkzeug's HTML.
 - **Logging**: the listening message is printed just before the server starts, and the
   Werkzeug development server adds its own banner and access log on stderr.
 - **An invalid `PORT`** (non-numeric) stops the server with a Python error; Node's
