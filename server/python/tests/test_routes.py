@@ -386,9 +386,7 @@ def _at_limit_json() -> bytes:
 
 
 def test_webhook_oversized_body_returns_413(client: FlaskClient) -> None:
-    response = client.post(
-        "/webhook", data=_oversize_body(), content_type="application/json"
-    )
+    response = client.post("/webhook", data=_oversize_body(), content_type="application/json")
 
     assert response.status_code == 413
     assert response.content_type == "text/html; charset=utf-8"
