@@ -33,6 +33,7 @@ from urllib.parse import urlsplit
 import pytest
 import requests
 
+from server import SECRET_KEY_PATTERN
 from tests.conftest import sign_payload
 
 PYTHON_DIR = Path(__file__).resolve().parents[2]
@@ -40,7 +41,6 @@ REPO_ROOT = PYTHON_DIR.parents[1]
 NODE_DIR = REPO_ROOT / "server" / "node"
 CLIENT_DIR = REPO_ROOT / "client" / "html"
 
-SECRET_KEY_PATTERN = re.compile(r"(sk|rk)_(test|live)_[A-Za-z0-9]{10,}")
 SESSION_ID_PATTERN = re.compile(r"/(cs_test_[A-Za-z0-9]+)")
 WEBHOOK_SECRET = "whsec_paritytest123"
 ALLOWED_TARGETS = ("node", "python")
