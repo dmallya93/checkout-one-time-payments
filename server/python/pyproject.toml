@@ -1,0 +1,42 @@
+[project]
+name = "checkout-one-time-payments"
+version = "1.0.0"
+description = "Accept payments with Stripe Checkout"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.1,<4",
+    "stripe>=16,<17",
+    "python-dotenv>=1.2,<2",
+    "waitress>=3,<4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9,<10",
+    "pytest-mock>=3.14",
+    "playwright>=1.49",
+    "requests>=2.32",
+    "ruff>=0.15",
+]
+
+[tool.uv]
+# This is an application, not an installable package.
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = ["-ra", "--strict-markers"]
+markers = [
+    "live: requires a Stripe test-mode key and network access to api.stripe.com",
+    "e2e: browser end-to-end tests (Playwright, needs Chromium)",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4"]
