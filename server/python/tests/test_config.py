@@ -10,7 +10,7 @@ import stripe
 from flask import Flask
 
 import server
-from tests.conftest import CLIENT_DIR, SERVER_DIR, VALID_SECRET_KEY
+from tests.conftest import CLIENT_DIR, SERVER_DIR, SUCCESS_URL_SUFFIX, VALID_SECRET_KEY
 
 KEY_NOT_SET = "STRIPE_SECRET_KEY is not set.\n"
 
@@ -382,9 +382,7 @@ def test_main_app_uses_loaded_config(startup):
     resp = app.test_client().post("/create-checkout-session", data={"quantity": "1"})
     assert resp.status_code == 303
     params = startup.stripe_client.v1.checkout.sessions.create.call_args.kwargs["params"]
-    assert params["success_url"] == (
-        "https://shop.example.com/success.html?session_id={CHECKOUT_SESSION_ID}"
-    )
+    assert params["success_url"] == "https://shop.example.com" + SUCCESS_URL_SUFFIX
 
 
 @pytest.mark.parametrize(

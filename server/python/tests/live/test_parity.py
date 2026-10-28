@@ -17,12 +17,13 @@ from urllib.parse import urlsplit
 import pytest
 import requests
 
+from tests.conftest import SUCCESS_URL_SUFFIX
+
 from .conftest import PARITY_TARGETS, REQUEST_TIMEOUT, LiveServer, ServerPool
 
 pytestmark = pytest.mark.live
 
 CHECKOUT_HOST = "checkout.stripe.com"
-SUCCESS_PATH = "/success.html?session_id={CHECKOUT_SESSION_ID}"
 PAYMENT_LOG = "🔔  Payment received!"
 BAD_SIGNATURE_LOG = "⚠️  Webhook signature verification failed."
 SESSION_KEYS = {"id", "object", "url", "success_url", "amount_total", "currency", "mode"}
@@ -228,8 +229,8 @@ def test_checkout_session_returns_the_session(live_server: LiveServer) -> None:
     assert session["id"] == session_id
     assert session["object"] == "checkout.session"
     assert urlsplit(session["url"]).hostname == CHECKOUT_HOST
-    assert session["success_url"].endswith(SUCCESS_PATH)
-    assert session["success_url"] == f"{live_server.domain}{SUCCESS_PATH}"
+    assert session["success_url"].endswith(SUCCESS_URL_SUFFIX)
+    assert session["success_url"] == f"{live_server.domain}{SUCCESS_URL_SUFFIX}"
     assert session["amount_total"] == 1000
     assert session["currency"] == "usd"
     assert session["mode"] == "payment"

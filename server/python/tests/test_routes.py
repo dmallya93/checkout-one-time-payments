@@ -8,9 +8,7 @@ import pytest
 import stripe
 
 import server
-from tests.conftest import CLIENT_DIR, SESSION_URL, VALID_SECRET_KEY
-
-SUCCESS_URL_SUFFIX = "/success.html?session_id={CHECKOUT_SESSION_ID}"
+from tests.conftest import CLIENT_DIR, SESSION_URL, SUCCESS_URL_SUFFIX, VALID_SECRET_KEY
 
 
 def expected_create_params(quantity, domain: str = "http://localhost:4242") -> dict:
@@ -257,9 +255,7 @@ def test_create_session_success_url_has_literal_placeholder(client, stripe_clien
     client.post("/create-checkout-session", data={"quantity": "1"})
 
     params = stripe_client.v1.checkout.sessions.create.call_args.kwargs["params"]
-    assert params["success_url"] == (
-        "http://localhost:4242/success.html?session_id={CHECKOUT_SESSION_ID}"
-    )
+    assert params["success_url"] == "http://localhost:4242" + SUCCESS_URL_SUFFIX
 
 
 def test_create_session_redirect_uses_exact_session_url(client, stripe_client, make_session):
@@ -293,9 +289,7 @@ def test_create_session_domain_defaults_from_port(isolated_env, stripe_client):
     )
 
     params = stripe_client.v1.checkout.sessions.create.call_args.kwargs["params"]
-    assert params["success_url"] == (
-        "http://localhost:5000/success.html?session_id={CHECKOUT_SESSION_ID}"
-    )
+    assert params["success_url"] == "http://localhost:5000" + SUCCESS_URL_SUFFIX
 
 
 @pytest.mark.parametrize(

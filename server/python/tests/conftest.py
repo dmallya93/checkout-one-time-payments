@@ -28,6 +28,8 @@ import server  # noqa: E402
 VALID_SECRET_KEY = "sk_test_" + "a1B2c3D4e5" * 3
 WEBHOOK_SECRET = "whsec_test_secret"
 SESSION_URL = "https://checkout.stripe.com/c/pay/cs_test_a1b2c3"
+# The literal {CHECKOUT_SESSION_ID} placeholder Stripe fills in on redirect.
+SUCCESS_URL_SUFFIX = "/success.html?session_id={CHECKOUT_SESSION_ID}"
 
 # Environment variables read by load_config()/main().
 SERVER_ENV_VARS = (
