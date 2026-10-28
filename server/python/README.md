@@ -63,14 +63,37 @@ uv run pytest
 ```
 
 - The unit tests mock Stripe and need no key or network.
-- Tests marked `live` (black-box parity and Playwright E2E) need
-  `STRIPE_SECRET_KEY` set to a test-mode key and network access to
-  `api.stripe.com`. Without a key they are skipped and listed as skipped in
-  the pytest summary. Run only the offline suite with `uv run pytest -m "not live"`.
-- `PARITY_TARGETS` selects which servers the parity tests start, for example
-  `PARITY_TARGETS=node,python` (Node only while `server/node` exists) or
-  `PARITY_TARGETS=python`.
-- Playwright E2E needs Chromium (`playwright install chromium`).
+- Tests in `tests/live/` are marked `live` (black-box parity in
+  `test_parity.py`, Playwright E2E in `test_e2e.py`, which is also marked
+  `e2e`). They need `STRIPE_SECRET_KEY` in the environment (a test-mode key;
+  `.env` is not read for it) and network access to `api.stripe.com`. Without
+  a key they are skipped with the reason
+  `STRIPE_SECRET_KEY not set: live Stripe tests skipped`, shown in the pytest
+  summary. Run only the offline suite with `uv run pytest -m "not live"`, or
+  only the live tests with `uv run pytest -m live`.
+- The live tests start the servers themselves, each on a free port, and wait
+  for `GET /health` to return 200 (30 s timeout). `PARITY_TARGETS` selects
+  which servers the parity tests run against: `python` (the default), `node`,
+  or `node,python`. With both, `test_node_and_python_agree` also compares the
+  two servers' status codes, content types, redirect hosts and JSON key sets.
+  The Node target is skipped with a reason if `server/node`, its
+  `node_modules` (run `npm install` there first) or the `node` executable is
+  missing.
+- Webhook tests start each server twice: once with `STRIPE_WEBHOOK_SECRET`
+  set to the fixed test secret `whsec_paritytest123` (the tests sign events
+  with it), and once with it empty (signing not configured). Both settings
+  override any `STRIPE_WEBHOOK_SECRET` from the environment or `.env`.
+- Playwright E2E runs headless Chromium against the Python server and is
+  skipped with a reason if Chromium is not installed
+  (`uv run playwright install chromium`). It reaches `checkout.stripe.com` but
+  does not complete a payment.
+
+For example:
+
+```
+STRIPE_SECRET_KEY=sk_test_... uv run pytest -m live
+STRIPE_SECRET_KEY=sk_test_... PARITY_TARGETS=node,python uv run pytest tests/live/test_parity.py
+```
 
 Static checks:
 
