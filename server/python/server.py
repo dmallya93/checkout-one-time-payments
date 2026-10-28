@@ -180,13 +180,17 @@ def main() -> None:
             sys.exit(1)
 
     app = create_app(config, stripe_client)
-    if not reloader_child:
-        print(f"Python server listening on port {config.port}!", flush=True)
+    listening = f"Python server listening on port {config.port}!"
 
     if debug:
+        if not reloader_child:
+            print(listening, flush=True)
         app.run(host="0.0.0.0", port=config.port, debug=True)
     else:
-        waitress.serve(app, host="0.0.0.0", port=config.port)
+        # Bind first, then log, like app.listen's callback in Node.
+        server = waitress.create_server(app, host="0.0.0.0", port=config.port)
+        print(listening, flush=True)
+        server.run()
 
 
 if __name__ == "__main__":
