@@ -147,11 +147,6 @@ class FakeStripe:
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
-    def session_creates(self) -> list[dict[str, Any]]:
-        return [
-            r for r in self.requests if r["method"] == "POST" and r["path"] == "/v1/checkout/sessions"
-        ]
-
     def close(self) -> None:
         self.server.shutdown()
         self.server.server_close()
