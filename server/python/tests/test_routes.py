@@ -95,6 +95,32 @@ def test_create_checkout_session_json_body(client: FlaskClient, stripe_mock: Mag
     }
 
 
+@pytest.mark.parametrize(
+    ("accept", "content_type", "body"),
+    [
+        (None, "text/plain; charset=utf-8", b"See Other. Redirecting to {url}"),
+        ("*/*", "text/plain; charset=utf-8", b"See Other. Redirecting to {url}"),
+        (
+            "text/html,application/xhtml+xml,*/*;q=0.8",
+            "text/html; charset=utf-8",
+            b"<p>See Other. Redirecting to {url}</p>",
+        ),
+        ("application/json", None, b""),
+    ],
+)
+def test_create_checkout_session_redirect_body_negotiated_like_express(
+    client: FlaskClient, accept: str | None, content_type: str | None, body: bytes
+) -> None:
+    headers = {"Accept": accept} if accept is not None else {}
+    response = client.post("/create-checkout-session", data={"quantity": "1"}, headers=headers)
+
+    assert response.status_code == 303
+    assert response.headers.get("Content-Type") == content_type
+    assert response.headers["Vary"] == "Accept"
+    url = b"https://checkout.stripe.com/c/pay/cs_test_123"
+    assert response.data == body.replace(b"{url}", url)
+
+
 def test_success_url_keeps_literal_placeholder(client: FlaskClient, stripe_mock: MagicMock) -> None:
     client.post("/create-checkout-session", data={"quantity": "1"})
 
@@ -251,13 +277,13 @@ def test_checkout_session_invalid_id_returns_400(
 @pytest.mark.parametrize(
     ("path", "filename", "content_type"),
     [
-        ("/", "index.html", "text/html; charset=utf-8"),
-        ("/index.html", "index.html", "text/html; charset=utf-8"),
-        ("/success.html", "success.html", "text/html; charset=utf-8"),
-        ("/css/global.css", "css/global.css", "text/css; charset=utf-8"),
-        ("/css/normalize.css", "css/normalize.css", "text/css; charset=utf-8"),
-        ("/index.js", "index.js", "application/javascript; charset=utf-8"),
-        ("/success.js", "success.js", "application/javascript; charset=utf-8"),
+        ("/", "index.html", "text/html; charset=UTF-8"),
+        ("/index.html", "index.html", "text/html; charset=UTF-8"),
+        ("/success.html", "success.html", "text/html; charset=UTF-8"),
+        ("/css/global.css", "css/global.css", "text/css; charset=UTF-8"),
+        ("/css/normalize.css", "css/normalize.css", "text/css; charset=UTF-8"),
+        ("/index.js", "index.js", "application/javascript; charset=UTF-8"),
+        ("/success.js", "success.js", "application/javascript; charset=UTF-8"),
         ("/favicon.ico", "favicon.ico", "image/x-icon"),
     ],
 )

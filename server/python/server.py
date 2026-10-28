@@ -15,6 +15,7 @@ import re
 import sys
 from dataclasses import dataclass
 from html import escape
+from http import HTTPStatus
 from pathlib import Path
 from typing import Any, NoReturn
 from urllib.parse import quote
@@ -54,6 +55,9 @@ SUCCESS_PATH = "/success.html?session_id={CHECKOUT_SESSION_ID}"
 JSON_CONTENT_TYPE = "application/json; charset=utf-8"
 TEXT_CONTENT_TYPE = "text/plain; charset=utf-8"
 HTML_CONTENT_TYPE = "text/html; charset=utf-8"
+# Express' ``send`` labels text, JavaScript and JSON static files with an upper-case
+# ``charset=UTF-8`` (``mime.charsets.lookup``).
+STATIC_CHARSET_PATTERN = re.compile(r"text/.*|application/(javascript|json)")
 
 # Media types that Express (``send``/``mime`` 1.x) uses where Python's
 # ``mimetypes`` table differs.
@@ -222,7 +226,7 @@ def create_app(
             session = client.v1.checkout.sessions.create(params=params)  # type: ignore[arg-type]
         except stripe.StripeError as err:
             return json_response({"error": error_message(err)}, 502)
-        return redirect(session.url or "", code=303)
+        return express_redirect(session.url or "", 303)
 
     # Webhook handler for asynchronous events.
     @app.post("/webhook")
@@ -268,6 +272,30 @@ def json_response(payload: Any, status: int = 200) -> Response:
 def text_response(body: str, status: int) -> Response:
     """Plain-text body, like Express ``res.sendStatus(status)``."""
     return Response(body, status=status, content_type=TEXT_CONTENT_TYPE)
+
+
+def express_redirect(location: str, status: int) -> BaseResponse:
+    """Redirect like Express ``res.redirect(status, url)``.
+
+    Express negotiates the body on ``Accept``: plain text for ``*/*`` or no ``Accept``
+    header, a ``<p>`` for HTML clients, and an empty body without a ``Content-Type``
+    otherwise.
+    """
+    response = redirect(location, code=status)
+    reason = HTTPStatus(status).phrase
+    accept = request.accept_mimetypes
+    best = accept.best_match(["text/plain", "text/html"]) if accept else "text/plain"
+    if best == "text/plain":
+        response.set_data(f"{reason}. Redirecting to {location}")
+        response.content_type = TEXT_CONTENT_TYPE
+    elif best == "text/html":
+        response.set_data(f"<p>{reason}. Redirecting to {escape(location, quote=True)}</p>")
+        response.content_type = HTML_CONTENT_TYPE
+    else:
+        response.set_data(b"")
+        del response.headers["Content-Type"]
+    response.headers["Vary"] = "Accept"
+    return response
 
 
 def express_not_found() -> Response:
@@ -323,7 +351,10 @@ def _serve_static(static_dir: str) -> BaseResponse | None:
 
 def _send_static(static_dir: str, rel_path: str) -> Response:
     mimetype = STATIC_MIMETYPE_OVERRIDES.get(Path(rel_path).suffix.lower())
-    return send_from_directory(static_dir, rel_path, mimetype=mimetype)
+    response = send_from_directory(static_dir, rel_path, mimetype=mimetype)
+    if STATIC_CHARSET_PATTERN.fullmatch(response.mimetype or ""):
+        response.content_type = f"{response.mimetype}; charset=UTF-8"
+    return response
 
 
 def _request_body() -> dict[str, Any]:
