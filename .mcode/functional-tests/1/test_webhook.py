@@ -45,15 +45,6 @@ def wh_server(tmp_path_factory):
     sp.stop()
 
 
-def _wait_log(srv, needle, timeout=3.0):
-    end = time.time() + timeout
-    while time.time() < end:
-        if needle in srv.output():
-            return True
-        time.sleep(0.1)
-    return needle in srv.output()
-
-
 class TestWebhook:
     def test_webhook_valid_signature_completed(self, wh_server):
         payload = _event()
