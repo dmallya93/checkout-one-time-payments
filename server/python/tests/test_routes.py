@@ -88,9 +88,10 @@ def test_static_dir_from_config_is_used(tmp_path, make_config, stripe_client):
     assert test_client.get("/success.html").status_code == 404
 
 
-def test_wrong_method_on_route_is_405(client):
+def test_wrong_method_on_route(client):
     assert client.post("/health").status_code == 405
-    assert client.get("/create-checkout-session").status_code == 405
+    # GET falls through to the root static route, so it is a 404 (as in Express).
+    assert client.get("/create-checkout-session").status_code == 404
 
 
 # --- /health ------------------------------------------------------------------------------

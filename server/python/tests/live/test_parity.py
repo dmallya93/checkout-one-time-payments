@@ -224,7 +224,7 @@ def test_checkout_session_returns_the_session(live_server: LiveServer) -> None:
     assert resp.status_code == 200, resp.text[:500]
     assert content_type_family(resp.headers.get("Content-Type")) == "application/json"
     session = resp.json()
-    assert SESSION_KEYS <= set(session)
+    assert set(session) >= SESSION_KEYS
     assert session["id"] == session_id
     assert session["object"] == "checkout.session"
     assert urlsplit(session["url"]).hostname == CHECKOUT_HOST

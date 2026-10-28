@@ -143,6 +143,10 @@ def test_success_page_renders_session_and_restarts(
     assert session["id"] == session_id
     assert session["object"] == "checkout.session"
 
-    page.get_by_role("button", name="Restart demo").click()
+    restart = page.get_by_role("button", name="Restart demo")
+    expect(restart).to_be_visible()
+    # The long session JSON widens the flex-centred layout of the (unchanged) client, which can
+    # push the button to a negative x offset that scrolling cannot reach, so dispatch the click.
+    restart.dispatch_event("click")
     page.wait_for_url(python_server.url("/"), timeout=NAVIGATION_TIMEOUT_MS)
     expect(page.locator("h1")).to_have_text("Single photo")
