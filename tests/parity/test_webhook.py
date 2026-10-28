@@ -134,9 +134,7 @@ def test_signed_webhook_non_object_json_is_400(
     """A validly signed body that is not a JSON object answers 400, like Express."""
     headers = {**JSON_HEADERS, "Stripe-Signature": stripe_signature(data, webhook_secret)}
 
-    response = http.post(
-        f"{signed_base_url}/webhook", data=data, headers=headers, timeout=TIMEOUT
-    )
+    response = http.post(f"{signed_base_url}/webhook", data=data, headers=headers, timeout=TIMEOUT)
 
     assert_bad_request(response)
 
