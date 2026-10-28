@@ -86,7 +86,7 @@ def test_head_static_file(http: requests.Session, base_url: str) -> None:
 def test_static_directory_redirects_to_trailing_slash(
     http: requests.Session, base_url: str
 ) -> None:
-    response = http.get(f"{base_url}/css", timeout=TIMEOUT, allow_redirects=False)
+    response = http.get(f"{base_url}/css", timeout=TIMEOUT)
 
     assert response.status_code == 301
     assert response.headers["Location"] == "/css/"
@@ -96,7 +96,7 @@ def test_static_directory_redirects_to_trailing_slash(
 def test_static_directory_without_index_and_dotfiles_are_404(
     http: requests.Session, base_url: str, path: str
 ) -> None:
-    response = http.get(f"{base_url}{path}", timeout=TIMEOUT, allow_redirects=False)
+    response = http.get(f"{base_url}{path}", timeout=TIMEOUT)
 
     assert response.status_code == 404
     assert_content_type(response, "text/html", "utf-8")
@@ -215,7 +215,6 @@ def test_create_checkout_session_redirects_303(
     response = http.post(
         f"{base_url}/create-checkout-session",
         timeout=TIMEOUT,
-        allow_redirects=False,
         **kwargs,
     )
 
@@ -238,7 +237,6 @@ def test_create_checkout_session_redirect_body_content_type(
         data={"quantity": "1"},
         headers={"Accept": accept},
         timeout=TIMEOUT,
-        allow_redirects=False,
     )
 
     assert response.status_code == 303
@@ -258,7 +256,6 @@ def test_create_checkout_session_stripe_error_is_502(
     response = http.post(
         f"{base_url}/create-checkout-session",
         timeout=TIMEOUT,
-        allow_redirects=False,
         **kwargs,
     )
 
@@ -290,7 +287,7 @@ def test_create_checkout_session_stripe_error_is_502(
 def test_unknown_route_or_method_is_404(
     http: requests.Session, base_url: str, method: str, path: str
 ) -> None:
-    response = http.request(method, f"{base_url}{path}", timeout=TIMEOUT, allow_redirects=False)
+    response = http.request(method, f"{base_url}{path}", timeout=TIMEOUT)
 
     assert response.status_code == 404
     assert_content_type(response, "text/html", "utf-8")

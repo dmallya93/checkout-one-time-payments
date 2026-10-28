@@ -23,13 +23,13 @@ from typing import Any
 
 import pytest
 import requests
+from helpers import TIMEOUT
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 STATIC_DIR = REPO_ROOT / "client" / "html"
 DEFAULT_STRIPE_MOCK_URL = "http://localhost:12111"
 # Any well-formed test key works with stripe-mock; this is not a real secret.
 STRIPE_MOCK_KEY = "sk_test_paritysuite0000"
-TIMEOUT = 10
 
 
 def _env(name: str) -> str | None:
