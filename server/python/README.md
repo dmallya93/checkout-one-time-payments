@@ -86,6 +86,10 @@ The HTTP parity suite in [`tests/parity`](../../tests/parity/README.md) runs the
 black-box tests against this server and the Express reference, both pointed at
 stripe-mock: `bash tests/parity/run_parity.sh all` from the repository root.
 
+The Playwright browser tests in [`tests/e2e`](../../tests/e2e/README.md) drive the
+static client through this server against stripe-mock: `pytest tests/e2e` from the
+repository root (after `playwright install chromium`).
+
 ## Differences from the Express server
 
 The Flask server reproduces the Express behaviour the client and Stripe depend on,
