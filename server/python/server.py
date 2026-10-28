@@ -140,6 +140,18 @@ def run_startup_check(stripe_client: stripe.StripeClient) -> None:
         _fail(f"Startup failed: {error_message(err)}")
 
 
+def bootstrap(
+    stripe_client: stripe.StripeClient | None = None,
+) -> tuple[Config, stripe.StripeClient]:
+    """Load the config, validate the key, build the client and run the Balance check."""
+    config = load_config()
+    require_valid_secret_key(config)
+    if stripe_client is None:
+        stripe_client = build_stripe_client(config)
+    run_startup_check(stripe_client)
+    return config, stripe_client
+
+
 def error_message(err: BaseException) -> str:
     """Return the error text Node would expose as ``err.message``.
 
@@ -161,11 +173,7 @@ def create_app(
     loaded, the key validated and the Balance startup check run, as ``main()`` does.
     """
     if config is None:
-        config = load_config()
-        require_valid_secret_key(config)
-        if stripe_client is None:
-            stripe_client = build_stripe_client(config)
-        run_startup_check(stripe_client)
+        config, stripe_client = bootstrap(stripe_client)
     elif stripe_client is None:
         stripe_client = build_stripe_client(config)
 
@@ -409,10 +417,7 @@ def _fail(message: str) -> NoReturn:
 
 def main() -> None:
     """Entry point for ``python server.py``."""
-    config = load_config()
-    require_valid_secret_key(config)
-    stripe_client = build_stripe_client(config)
-    run_startup_check(stripe_client)
+    config, stripe_client = bootstrap()
     app = create_app(config, stripe_client)
     _log(f"Python server listening on port {config.port}!")
     app.run(host=LISTEN_HOST, port=config.port)
