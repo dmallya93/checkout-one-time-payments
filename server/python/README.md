@@ -128,6 +128,9 @@ Accepted differences, none of which affect the client or Stripe:
   with `Content-Type: application/json` are treated as an empty body (so `/webhook` answers
   200 without a secret, and `/create-checkout-session` calls Stripe without a quantity).
   Express' strict body parser rejected them with a 400 HTML error page before the route ran.
+- **Signed webhooks** with a valid signature but a non-object JSON body (`42`, `"text"`,
+  `null`, `[1]`) answer 400 `Bad Request`, matching Express. This contrasts with the
+  unsigned path above, which answers 200.
 - **Signed webhooks** are verified against the raw body whatever the `Content-Type`.
   Express only kept the raw body for `application/json` requests.
 - **Repeated or nested form fields** (`quantity=1&quantity=2`, `quantity[a]=1`) use the first

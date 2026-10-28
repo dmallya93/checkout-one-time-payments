@@ -241,7 +241,9 @@ def create_app(
             signature = request.headers.get("Stripe-Signature")
             try:
                 event = client.construct_event(payload, signature, webhook_secret)
-            except (stripe.StripeError, ValueError):
+            # A validly signed body that is not a JSON object makes stripe-python raise
+            # AttributeError/TypeError while building the Event; Express returned 400 here.
+            except (stripe.StripeError, ValueError, AttributeError, TypeError):
                 _log("⚠️  Webhook signature verification failed.")
                 return text_response("Bad Request", 400)
             event_type = event.type

@@ -126,6 +126,23 @@ def test_signed_webhook_accepts_one_valid_signature_among_several(
 
 @pytest.mark.signed
 @pytest.mark.parametrize(
+    "data", [b"42", b'"text"', b"null", b"[1]"], ids=["number", "string", "null", "array"]
+)
+def test_signed_webhook_non_object_json_is_400(
+    http: requests.Session, signed_base_url: str, webhook_secret: str, data: bytes
+) -> None:
+    """A validly signed body that is not a JSON object answers 400, like Express."""
+    headers = {**JSON_HEADERS, "Stripe-Signature": stripe_signature(data, webhook_secret)}
+
+    response = http.post(
+        f"{signed_base_url}/webhook", data=data, headers=headers, timeout=TIMEOUT
+    )
+
+    assert_bad_request(response)
+
+
+@pytest.mark.signed
+@pytest.mark.parametrize(
     "case",
     ["wrong-secret", "tampered-body", "missing-header", "malformed-header", "expired"],
 )
