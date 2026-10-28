@@ -76,9 +76,10 @@ uv run pytest
   which servers the parity tests run against: `python` (the default), `node`,
   or `node,python`. With both, `test_node_and_python_agree` also compares the
   two servers' status codes, content types, redirect hosts and JSON key sets.
-  The Node target is skipped with a reason if `server/node`, its
-  `node_modules` (run `npm install` there first) or the `node` executable is
-  missing.
+  The `node` target is the original Express server, which was removed from
+  this repo once parity was verified; to compare against it again, restore
+  `server/node` from the git history and run `npm install` there. Without it
+  the Node target is skipped with a reason.
 - Webhook tests start each server twice: once with `STRIPE_WEBHOOK_SECRET`
   set to the fixed test secret `whsec_paritytest123` (the tests sign events
   with it), and once with it empty (signing not configured). Both settings
